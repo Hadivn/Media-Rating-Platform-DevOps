@@ -1,6 +1,11 @@
 trigger:
 - pc_branch  
 
+variables:
+  solution: '**/*.sln'        
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+
 stages:
 # ========================================================
 # STAGE 1: BUILD
