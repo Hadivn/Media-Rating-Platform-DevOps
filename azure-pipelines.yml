@@ -39,6 +39,14 @@ stages:
         platform: '$(buildPlatform)'
         configuration: '$(buildConfiguration)'
 
+    - task: CopyFiles@2
+      displayName: 'Build-Dateien in Staging-Ordner kopieren'
+      inputs:
+        SourceFolder: '$(agent.builddirectory)'
+        Contents: '**/bin/$(buildConfiguration)/**'
+        TargetFolder: '$(build.artifactStagingDirectory)'
+        CleanTargetFolder: true
+
     - task: PublishBuildArtifacts@1
       displayName: 'Artefakte veröffentlichen'
       inputs:
@@ -65,6 +73,7 @@ stages:
           steps:
           - powershell: |
               Write-Host "Starte Deployment..."
-              Get-ChildItem $(Pipeline.Workspace)/drop
+              # Zeigt den kompletten Inhalt des Workspace an, um zu sehen, wo die Dateien liegen
+              Get-ChildItem $(Pipeline.Workspace) -Recurse -ErrorAction SilentlyContinue
               Write-Host "Deployment erfolgreich abgeschlossen!"
             displayName: 'Simuliere App-Deployment'
