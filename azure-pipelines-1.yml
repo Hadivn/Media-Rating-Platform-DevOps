@@ -65,7 +65,7 @@ stages:
             inputs:
               azureSubscription: 'devops-rm' 
               appType: 'webApp'
-              appName: 'mrp-devops-abgabe' 
+              appName: 'mrp-devops-webapp' 
               package: '$(Pipeline.Workspace)/drop/**/*.zip'
               appSettings: |
                 -DB_CONNECTION_STRING_LONG "$(DbConnectionStringLong)"
