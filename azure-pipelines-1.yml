@@ -1,6 +1,7 @@
 trigger:
 - pc_branch
 
+
 variables:
 - name: solution
   value: '**/*.sln'
