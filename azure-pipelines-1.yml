@@ -52,6 +52,7 @@ stages:
         PathtoPublish: '$(Build.ArtifactStagingDirectory)'
         ArtifactName: 'drop'
         publishLocation: 'Container'
+
 - stage: Deploy
   displayName: 'Echtes Release und Deployment'
   dependsOn: Build
@@ -65,13 +66,17 @@ stages:
       runOnce:
         deploy:
           steps:
+          - download: current
+            artifact: drop
+            displayName: 'Lade Build-Artefakte herunter'
+
           - task: AzureWebApp@1
             displayName: 'Echtes Cloud-Deployment in Azure App Service'
             inputs:
-              azureSubscription: 'devops-rm' 
+              azureSubscription: 'devops-rm'
               appType: 'webApp'
-              appName: 'mrp-devops-webapp' 
-              package: '$(Pipeline.Workspace)/drop'
+              appName: 'mrp-devops-webapp'
+              package: '$(Pipeline.Workspace)/drop/**/MediaRatingPlatform_Server/bin/Release'
               appSettings: |
                 -DB_CONNECTION_STRING_LONG "$(DbConnectionStringLong)"
                 -DB_CONNECTION_STRING_SHORT "$(DbConnectionStringShort)"
