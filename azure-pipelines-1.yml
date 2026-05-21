@@ -39,14 +39,19 @@ stages:
       inputs:
         platform: '$(buildPlatform)'
         configuration: '$(buildConfiguration)'
-
+    - task: CopyFiles@2
+      displayName: 'Kopiere Build-Dateien in den Staging-Ordner'
+      inputs:
+        SourceFolder: '$(Build.SourcesDirectory)' # Sicherer als agent.builddirectory
+        Contents: '**/MediaRatingPlatform_Server/bin/Release/**'
+        TargetFolder: '$(Build.ArtifactStagingDirectory)'
+        cleanTargetFolder: true
     - task: PublishBuildArtifacts@1
-      displayName: 'Artefakt hochladen'
+      displayName: 'VerÃ¶ffentliche Artefakt drop'
       inputs:
         PathtoPublish: '$(Build.ArtifactStagingDirectory)'
         ArtifactName: 'drop'
         publishLocation: 'Container'
-
 - stage: Deploy
   displayName: 'Echtes Release und Deployment'
   dependsOn: Build
