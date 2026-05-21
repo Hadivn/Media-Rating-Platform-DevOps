@@ -8,6 +8,7 @@ variables:
   value: 'Any CPU'
 - name: buildConfiguration
   value: 'Release'
+- group: keyvault-secrets
 
 stages:
 - stage: Build
@@ -60,13 +61,22 @@ stages:
         deploy:
           steps:
           - task: PowerShell@2
-            displayName: 'Deployment simulieren'
+            displayName: 'Sicheres Deployment simulieren'
+
+            env:
+              DB_CONNECTION_STRING_LONG: $(DbConnectionStringLong)
+              DB_CONNECTION_STRING_SHORT: $(DbConnectionStringShort)
             inputs:
               targetType: inline
               script: |
                 Write-Host "=========================================="
-                Write-Host "Starte Deployment..."
+                Write-Host "Starte sicheres Deployment..."
                 Write-Host "Artefakte gefunden unter:"
                 Get-ChildItem $(Pipeline.Workspace)/drop -Recurse
+                Write-Host ""
+                Write-Host "Beweis fuer den Dozenten (Werte werden automatisch maskiert):"
+                Write-Host "Langer ConnectionString: $env:DB_CONNECTION_STRING_LONG"
+                Write-Host "Kurzer ConnectionString: $env:DB_CONNECTION_STRING_SHORT"
+                Write-Host ""
                 Write-Host "Deployment erfolgreich abgeschlossen!"
                 Write-Host "=========================================="
