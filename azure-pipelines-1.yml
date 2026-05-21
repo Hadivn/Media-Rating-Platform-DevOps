@@ -48,7 +48,7 @@ stages:
         publishLocation: 'Container'
 
 - stage: Deploy
-  displayName: 'Release und Deployment'
+  displayName: 'Echtes Release und Deployment'
   dependsOn: Build
   condition: succeeded()
   jobs:
@@ -60,23 +60,13 @@ stages:
       runOnce:
         deploy:
           steps:
-          - task: PowerShell@2
-            displayName: 'Sicheres Deployment simulieren'
-
-            env:
-              DB_CONNECTION_STRING_LONG: $(DbConnectionStringLong)
-              DB_CONNECTION_STRING_SHORT: $(DbConnectionStringShort)
+          - task: AzureWebApp@1
+            displayName: 'Echtes Cloud-Deployment in Azure App Service'
             inputs:
-              targetType: inline
-              script: |
-                Write-Host "=========================================="
-                Write-Host "Starte sicheres Deployment..."
-                Write-Host "Artefakte gefunden unter:"
-                Get-ChildItem $(Pipeline.Workspace)/drop -Recurse
-                Write-Host ""
-                Write-Host "Beweis fuer den Dozenten (Werte werden automatisch maskiert):"
-                Write-Host "Langer ConnectionString: $env:DB_CONNECTION_STRING_LONG"
-                Write-Host "Kurzer ConnectionString: $env:DB_CONNECTION_STRING_SHORT"
-                Write-Host ""
-                Write-Host "Deployment erfolgreich abgeschlossen!"
-                Write-Host "=========================================="
+              azureSubscription: 'devops-rm' 
+              appType: 'webApp'
+              appName: 'mrp-devops-abgabe' 
+              package: '$(Pipeline.Workspace)/drop/**/*.zip'
+              appSettings: |
+                -DB_CONNECTION_STRING_LONG "$(DbConnectionStringLong)"
+                -DB_CONNECTION_STRING_SHORT "$(DbConnectionStringShort)"
