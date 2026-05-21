@@ -47,9 +47,27 @@ stages:
         ArtifactName: 'drop'
         publishLocation: 'Container'
 
-    
+- stage: Deploy
+  displayName: 'Release & Deployment Stage'
+  dependsOn: Build                  
+  condition: succeeded()            
+  jobs:
+  - job: DeployJob
+    pool:
+      vmImage: 'windows-latest'     
+    steps:
+    - download: current
+      artifact: drop
 
-
+    - task: CmdLine@2
+      displayName: 'Führe Release Deployment aus'
+      inputs:
+        script: |
+          echo "=========================================================="
+          echo "Starte das automatisierte Release fuer die Media-Rating-Platform..."
+          echo "Das Artefakt wurde erfolgreich heruntergeladen."
+          echo "Bereit für die spätere Cloud-Anbindung in Punkt 4!"
+          echo "=========================================================="
 
       
 
