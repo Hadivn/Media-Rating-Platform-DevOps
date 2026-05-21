@@ -1,18 +1,17 @@
-# ASP.NET Build & Release Pipeline
 trigger:
 - pc_branch
 
-pool:
-  vmImage: 'windows-latest'
-
 variables:
-  solution: '**/*.sln'
-  buildPlatform: 'Any CPU'
-  buildConfiguration: 'Release'
+- name: solution
+  value: '**/*.sln'
+- name: buildPlatform
+  value: 'Any CPU'
+- name: buildConfiguration
+  value: 'Release'
 
 stages:
 - stage: Build
-  displayName: 'Build und Test ASP.NET App'
+  displayName: 'Build und Test'
   jobs:
   - job: BuildJob
     pool:
@@ -27,7 +26,7 @@ stages:
         restoreSolution: '$(solution)'
 
     - task: VSBuild@1
-      displayName: 'Projekt kompilieren & packen'
+      displayName: 'Projekt kompilieren'
       inputs:
         solution: '$(solution)'
         msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(Build.ArtifactStagingDirectory)"'
@@ -48,29 +47,26 @@ stages:
         publishLocation: 'Container'
 
 - stage: Deploy
-  displayName: 'Release & Deployment Stage'
+  displayName: 'Release und Deployment'
   dependsOn: Build
   condition: succeeded()
   jobs:
-  - job: DeployJob
+  - deployment: DeployJob
     pool:
-      vmImage: 'windows-latest'      
-    steps:
-    - task: DownloadBuildArtifacts@1
-      displayName: 'Lade Artefakt drop herunter'
-      inputs:
-        buildType: 'current'
-        downloadType: 'single'
-        artifactName: 'drop'
-        downloadPath: '$(Pipeline.Workspace)'
-
-    - task: CmdLine@2
-      displayName: 'Führe Release Deployment aus'
-      inputs:
-        script: |
-          echo "=========================================================="
-          echo "Starte das automatisierte Release fuer die Media-Rating-Platform..."
-          echo "Das Artefakt wurde erfolgreich heruntergeladen nach:"
-          echo "$(System.ArtifactsDirectory)"
-          echo "Bereit für die spätere Cloud-Anbindung in Punkt 4!"
-          echo "=========================================================="
+      vmImage: 'windows-latest'
+    environment: 'Production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: PowerShell@2
+            displayName: 'Deployment simulieren'
+            inputs:
+              targetType: inline
+              script: |
+                Write-Host "=========================================="
+                Write-Host "Starte Deployment..."
+                Write-Host "Artefakte gefunden unter:"
+                Get-ChildItem $(Pipeline.Workspace)/drop -Recurse
+                Write-Host "Deployment erfolgreich abgeschlossen!"
+                Write-Host "=========================================="
