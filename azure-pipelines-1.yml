@@ -1,9 +1,4 @@
-# ASP.NET
-
-# Build and test ASP.NET projects.
-# Add steps that publish symbols, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/apps/aspnet/build-aspnet-4
-
+# ASP.NET Build & Release Pipeline
 trigger:
 - pc_branch
 
@@ -17,31 +12,36 @@ variables:
 
 stages:
 - stage: Build
+  displayName: 'Build und Test ASP.NET App'
   jobs:
   - job: BuildJob
     pool:
       vmImage: 'windows-latest'
-
     steps:
     - task: NuGetToolInstaller@1
+      displayName: 'NuGet installieren'
 
     - task: NuGetCommand@2
+      displayName: 'NuGet Pakete wiederherstellen'
       inputs:
         restoreSolution: '$(solution)'
 
     - task: VSBuild@1
+      displayName: 'Projekt kompilieren & packen'
       inputs:
         solution: '$(solution)'
-        msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactStagingDirectory)"'
+        msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(Build.ArtifactStagingDirectory)"'
         platform: '$(buildPlatform)'
         configuration: '$(buildConfiguration)'
 
     - task: VSTest@2
+      displayName: 'Tests ausführen'
       inputs:
         platform: '$(buildPlatform)'
         configuration: '$(buildConfiguration)'
 
     - task: PublishBuildArtifacts@1
+      displayName: 'Artefakt hochladen'
       inputs:
         PathtoPublish: '$(Build.ArtifactStagingDirectory)'
         ArtifactName: 'drop'
@@ -49,15 +49,20 @@ stages:
 
 - stage: Deploy
   displayName: 'Release & Deployment Stage'
-  dependsOn: Build                  
-  condition: succeeded()            
+  dependsOn: Build
+  condition: succeeded()
   jobs:
   - job: DeployJob
     pool:
-      vmImage: 'windows-latest'     
+      vmImage: 'windows-latest'      
     steps:
-    - download: current
-      artifact: drop
+    - task: DownloadBuildArtifacts@1
+      displayName: 'Lade Artefakt drop herunter'
+      inputs:
+        buildType: 'current'
+        downloadType: 'single'
+        artifactName: 'drop'
+        downloadPath: '$(System.ArtifactsDirectory)'
 
     - task: CmdLine@2
       displayName: 'Führe Release Deployment aus'
@@ -65,11 +70,7 @@ stages:
         script: |
           echo "=========================================================="
           echo "Starte das automatisierte Release fuer die Media-Rating-Platform..."
-          echo "Das Artefakt wurde erfolgreich heruntergeladen."
+          echo "Das Artefakt wurde erfolgreich heruntergeladen nach:"
+          echo "$(System.ArtifactsDirectory)"
           echo "Bereit für die spätere Cloud-Anbindung in Punkt 4!"
           echo "=========================================================="
-
-      
-
-
-
