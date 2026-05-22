@@ -1,79 +1,81 @@
 trigger:
-- pc_branch  
+- pc_branch
+
 
 variables:
-  solution: '**/*.sln'        
-  buildPlatform: 'Any CPU'
-  buildConfiguration: 'Release'
+- name: solution
+  value: '**/*.sln'
+- name: buildPlatform
+  value: 'Any CPU'
+- name: buildConfiguration
+  value: 'Release'
+- group: keyvault-secrets
 
 stages:
-# ========================================================
-# STAGE 1: BUILD
-# ========================================================
 - stage: Build
-  displayName: 'Kompilieren und Testen'
+  displayName: 'Build und Test'
   jobs:
   - job: BuildJob
     pool:
       vmImage: 'windows-latest'
     steps:
     - task: NuGetToolInstaller@1
-      displayName: 'NuGet Tool Installer'
+      displayName: 'NuGet installieren'
 
     - task: NuGetCommand@2
-      displayName: 'NuGet Restore'
+      displayName: 'NuGet Pakete wiederherstellen'
       inputs:
         restoreSolution: '$(solution)'
 
     - task: VSBuild@1
-      displayName: 'Visual Studio Build'
+      displayName: 'Projekt kompilieren'
       inputs:
         solution: '$(solution)'
-        msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactStagingDirectory)"'
+        msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(Build.ArtifactStagingDirectory)"'
         platform: '$(buildPlatform)'
         configuration: '$(buildConfiguration)'
 
     - task: VSTest@2
-      displayName: 'Visual Studio Test'
+      displayName: 'Tests ausfuehren'
       inputs:
         platform: '$(buildPlatform)'
         configuration: '$(buildConfiguration)'
-
     - task: CopyFiles@2
-      displayName: 'Build-Dateien in Staging-Ordner kopieren'
+      displayName: 'Kopiere Build-Dateien in den Staging-Ordner'
       inputs:
-        SourceFolder: '$(agent.builddirectory)'
-        Contents: '**/bin/$(buildConfiguration)/**'
-        TargetFolder: '$(build.artifactStagingDirectory)'
-        CleanTargetFolder: true
-
+        SourceFolder: '$(Build.SourcesDirectory)'
+        Contents: '**/MediaRatingPlatform_Server/bin/Release/**'
+        TargetFolder: '$(Build.ArtifactStagingDirectory)'
+        cleanTargetFolder: true
     - task: PublishBuildArtifacts@1
-      displayName: 'Artefakte veröffentlichen'
+      displayName: 'Veroeffentliche Artefakt drop'
       inputs:
         PathtoPublish: '$(Build.ArtifactStagingDirectory)'
         ArtifactName: 'drop'
         publishLocation: 'Container'
 
-# ========================================================
-# STAGE 2: RELEASE
-# ========================================================
 - stage: Deploy
-  displayName: 'In Produktion ausliefern'
-  dependsOn: Build                  # Wartet, bis der Build erfolgreich war
-  condition: succeeded()             # Läuft nur, wenn kein Test fehlgeschlagen ist
+  displayName: 'Echtes Release und Deployment'
+  dependsOn: Build
+  condition: succeeded()
   jobs:
   - deployment: DeployJob
-    displayName: 'Deployment Job'
     pool:
       vmImage: 'windows-latest'
-    environment: 'Production'        # Erstellt automatisch eine Umgebung in Azure DevOps
+    environment: 'Production'
     strategy:
       runOnce:
         deploy:
           steps:
-          - powershell: |
-              Write-Host "Starte Deployment..."
-              # Zeigt den kompletten Inhalt des Workspace an, um zu sehen, wo die Dateien liegen
-              Get-ChildItem $(Pipeline.Workspace) -Recurse -ErrorAction SilentlyContinue
-              Write-Host "Deployment erfolgreich abgeschlossen!"
-            displayName: 'Simuliere App-Deployment'
+          - download: current
+            artifact: drop
+            displayName: 'Lade Build-Artefakte herunter'
+
+          - task: AzureWebApp@1
+            displayName: 'Echtes Cloud-Deployment in Azure App Service'
+            inputs:
+              azureSubscription: 'devops-rm'
+              appType: 'webApp'
+              appName: 'mrp-devops-webapp'
+              package: '$(Pipeline.Workspace)/drop/**/MediaRatingPlatform_Server/bin/Release'
+              appSettings: '-DB_CONNECTION_STRING_LONG "$(DbConnectionStringLong)" -DB_CONNECTION_STRING_SHORT "$(DbConnectionStringShort)"'
