@@ -1,0 +1,81 @@
+trigger:
+- pc_branch
+
+
+variables:
+- name: solution
+  value: '**/*.sln'
+- name: buildPlatform
+  value: 'Any CPU'
+- name: buildConfiguration
+  value: 'Release'
+- group: keyvault-secrets
+
+stages:
+- stage: Build
+  displayName: 'Build und Test'
+  jobs:
+  - job: BuildJob
+    pool:
+      vmImage: 'windows-latest'
+    steps:
+    - task: NuGetToolInstaller@1
+      displayName: 'NuGet installieren'
+
+    - task: NuGetCommand@2
+      displayName: 'NuGet Pakete wiederherstellen'
+      inputs:
+        restoreSolution: '$(solution)'
+
+    - task: VSBuild@1
+      displayName: 'Projekt kompilieren'
+      inputs:
+        solution: '$(solution)'
+        msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(Build.ArtifactStagingDirectory)"'
+        platform: '$(buildPlatform)'
+        configuration: '$(buildConfiguration)'
+
+    - task: VSTest@2
+      displayName: 'Tests ausfuehren'
+      inputs:
+        platform: '$(buildPlatform)'
+        configuration: '$(buildConfiguration)'
+    - task: CopyFiles@2
+      displayName: 'Kopiere Build-Dateien in den Staging-Ordner'
+      inputs:
+        SourceFolder: '$(Build.SourcesDirectory)'
+        Contents: '**/MediaRatingPlatform_Server/bin/Release/**'
+        TargetFolder: '$(Build.ArtifactStagingDirectory)'
+        cleanTargetFolder: true
+    - task: PublishBuildArtifacts@1
+      displayName: 'Veroeffentliche Artefakt drop'
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'drop'
+        publishLocation: 'Container'
+
+- stage: Deploy
+  displayName: 'Echtes Release und Deployment'
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - deployment: DeployJob
+    pool:
+      vmImage: 'windows-latest'
+    environment: 'Production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: drop
+            displayName: 'Lade Build-Artefakte herunter'
+
+          - task: AzureWebApp@1
+            displayName: 'Echtes Cloud-Deployment in Azure App Service'
+            inputs:
+              azureSubscription: 'devops-rm'
+              appType: 'webApp'
+              appName: 'mrp-devops-webapp'
+              package: '$(Pipeline.Workspace)/drop/**/MediaRatingPlatform_Server/bin/Release'
+              appSettings: '-DB_CONNECTION_STRING_LONG "$(DbConnectionStringLong)" -DB_CONNECTION_STRING_SHORT "$(DbConnectionStringShort)"'
